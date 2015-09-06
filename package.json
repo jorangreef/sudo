@@ -21,5 +21,8 @@
     "url": "https://github.com/jorangreef/sudo-prompt/issues"
   },
   "homepage": "https://github.com/jorangreef/sudo-prompt#readme",
-  "scripts": {}
+  "scripts": {},
+  "devDependencies": {
+    "tape": "^4.2.0"
+  }
 }
