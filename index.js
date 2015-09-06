@@ -29,7 +29,7 @@ Sudo.Mac = function(command, end, count) {
   // Run sudo in non-interactive mode (-n).
   Node.child.exec('sudo -n ' + command,
     function(error, stdout, stderr) {
-      if (error) return end(error);
+      if (error && stderr !== 'sudo: a password is required\n') return end(error);
       if (stderr !== 'sudo: a password is required\n') {
         if (/^sudo:/i.test(stderr)) return end(stderr);
         end(error, stdout, stderr);
