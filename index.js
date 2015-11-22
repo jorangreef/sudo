@@ -15,7 +15,7 @@ function attempt(attempts, command, options, end) {
   // The -n (non-interactive) option prevents sudo from prompting the user for
   // a password. If a password is required for the command to run, sudo will
   // display an error message and exit.
-  Node.child.exec('/usr/bin/sudo -n ' + command,
+  return Node.child.exec('/usr/bin/sudo -n ' + command,
     function(error, stdout, stderr) {
       if (/sudo: a password is required/i.test(stderr)) {
         if (attempts > 0) return end(new Error('User did not grant permission.'));
@@ -110,7 +110,7 @@ function exec() {
   if (Node.process.platform !== 'darwin' && Node.process.platform !== 'linux') {
     return end(new Error('Platform not yet supported.'));
   }
-  attempt(0, command, options, end);
+  return attempt(0, command, options, end);
 }
 
 function linux(command, options, end) {
