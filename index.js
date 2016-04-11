@@ -160,6 +160,7 @@ function linuxExecute(binary, command, options, end) {
     string += '--sudo-mode ';
     string += '--description="' + escapeDoubleQuotes(options.name) + '" ';
   } else if (/pkexec/i.test(binary)) {
+    string += 'env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY ';
     string += '--disable-internal-agent ';
   }
   string += command;
