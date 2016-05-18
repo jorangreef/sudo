@@ -16,8 +16,11 @@ function Attempt(instance, end) {
   command.push('-n');
   command.push(instance.command);
   command = command.join(' ');
+  var originalProcessNoAsar = process.noAsar;
+  process.noAsar = true;
   Node.child.exec(command,
     function(error, stdout, stderr) {
+      process.noAsar = originalProcessNoAsar;
       if (/sudo: /i.test(stderr)) {
         var platform = Node.process.platform;
         if (platform === 'linux') {
