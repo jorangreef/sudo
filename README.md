@@ -32,6 +32,16 @@ sudo.exec('echo hello', options, function(error, stdout, stderr) {});
 
 Your command should not depend on any current working directory or environment variables in order to execute correctly, and you should take care to use absolute paths and not relative paths.
 
+## Child Process
+
+`sudo-prompt` is different from that of `child-process` due to it's platform and permissions constraits and *does not return anything*. You can know when the child process has been terminated by passing a callback:
+
+```
+sudo.exec('sleep 100', options, function(error, stdout, stderr) {
+  console.log('command terminated');
+});
+```
+
 ## Behavior
 On macOS, `sudo-prompt` should behave just like the `sudo` command in the shell. If your command does not work with the `sudo` command in the shell (perhaps because it uses `>` redirection to a restricted file), then it may not work with `sudo-prompt`. However, it is still possible to use sudo-prompt to get a privileged shell, [see this closed issue for more information](https://github.com/jorangreef/sudo-prompt/issues/1).
 
