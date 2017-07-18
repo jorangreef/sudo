@@ -22,7 +22,7 @@ function Attempt(instance, end) {
   command.push('--');
   command.push(instance.command);
   command = command.join(' ');
-  Node.child.exec(command,
+  Node.child.exec(command, instance.options,
     function(error, stdout, stderr) {
       if (/sudo: /i.test(stderr)) {
         if (platform === 'linux') {
@@ -125,7 +125,7 @@ function Linux(instance, end) {
       }
       command.push(instance.command);
       command = command.join(' ');
-      Node.child.exec(command,
+      Node.child.exec(command, instance.options,
         function(error, stdout, stderr) {
           if (error) {
             if (/No authentication agent found/.test(stderr)) {
@@ -234,7 +234,7 @@ function MacApplet(instance, end) {
           command.push('"' + EscapeDoubleQuotes(zip) + '"');
           command.push('-d "' + EscapeDoubleQuotes(instance.path) + '"');
           command = command.join(' ');
-          Node.child.exec(command, end);
+          Node.child.exec(command, instance.options, end);
         }
       );
     }
@@ -305,7 +305,7 @@ function MacPropertyList(instance, end) {
   command.push('"' + key + '"');
   command.push("'" + value + "'"); // We must use single quotes for value.
   command = command.join(' ');
-  Node.child.exec(command, end);
+  Node.child.exec(command, instance.options, end);
 }
 
 function MacResult(instance, end) {
@@ -468,7 +468,7 @@ function WindowsElevate(instance, end) {
   command.push('-WindowStyle hidden');
   command.push('-Verb runAs');
   command = command.join(' ');
-  var child = Node.child.exec(command,
+  var child = Node.child.exec(command, instance.options,
     function(error, stdout, stderr) {
       if (error) {
         if (/canceled by the user/i.test(error)) {
