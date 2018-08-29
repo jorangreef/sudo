@@ -33,6 +33,23 @@ sudo.exec('echo hello', options,
 );
 ```
 
+If your command is long-running, you can pass the `stream` option to get readable streams instead of a final callback:
+```javascript
+var sudo = require('sudo-prompt');
+var options = {
+  name: 'Electron logger',
+  stream: true
+};
+sudo.exec('dmesg -w', options,
+  function(error, stdout, stderr) {
+    if (error) throw error;
+    // stdout and stderr are readable streams
+    stdout.pipe(process.stdout);
+    stderr.pipe(process.stderr);
+  }
+);
+```
+
 `sudo-prompt` will use `process.title` as `options.name` if `options.name` is not provided. `options.name` must be alphanumeric only (spaces are supported) and at most 70 characters.
 
 Your command should not depend on any current working directory or environment variables in order to execute correctly, and you should take care to use absolute paths and not relative paths.

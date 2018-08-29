@@ -125,18 +125,44 @@ function Linux(instance, end) {
       }
       command.push(instance.command);
       command = command.join(' ');
-      Node.child.exec(command, { maxBuffer: MAX_BUFFER },
+      var cp = Node.child.exec(command, { maxBuffer: MAX_BUFFER },
         function(error, stdout, stderr) {
-          if (error) {
-            if (/No authentication agent found/.test(stderr)) {
-              error = new Error(NO_POLKIT_AGENT);
-            } else if (/Request dismissed|Command failed/i.test(error)) {
-              error = new Error(PERMISSION_DENIED);
+          if (!instance.options.stream) {
+            if (error) {
+              if (/No authentication agent found/.test(stderr)) {
+                error = new Error(NO_POLKIT_AGENT);
+              } else if (/Request dismissed|Command failed/i.test(error)) {
+                error = new Error(PERMISSION_DENIED);
+              }
             }
+            end(error, stdout, stderr);
           }
-          end(error, stdout, stderr);
         }
       );
+      if (instance.options.stream) {
+        var sentStreams = false;
+        var errored = false;
+        cp.stdout.once('data',
+          function(chunk) {
+            if (errored) return;
+            sentStreams = true;
+            end(null, cp.stdout, cp.stderr);
+          }
+        );
+        cp.stderr.on('data',
+          function(chunk) {
+            if (/No authentication agent found/.test(chunk)) {
+              error = new Error(NO_POLKIT_AGENT);
+            } else if (/Request dismissed|Command failed/i.test(chunk)) {
+              error = new Error(PERMISSION_DENIED);
+            }
+            if (error && !sentStreams) {
+              errored = true;
+              end(error);
+            }
+          }
+        );
+      }
     }
   );
 }
@@ -205,7 +231,7 @@ function Mac(instance, callback) {
                         function(error) {
                           if (error) return end(error);
                           MacResult(instance, end);
-                        }
+                        }, end
                       );
                     }
                   );
@@ -275,7 +301,7 @@ function MacIcon(instance, end) {
   );
 }
 
-function MacOpen(instance, end) {
+function MacOpen(instance, end, finalEnd) {
   // We must run the binary directly so that the cwd will apply.
   var binary = Node.path.join(instance.path, 'Contents', 'MacOS', 'applet');
   // We must set the cwd so that the AppleScript can find the shell scripts.
@@ -283,6 +309,34 @@ function MacOpen(instance, end) {
   // We use the relative path rather than the absolute path. The instance.path
   // may contain spaces which the cwd can handle, but which exec() cannot.
   Node.child.exec('./' + Node.path.basename(binary), options, end);
+  if (instance.options.stream) {
+    var stdout = Node.fs.createReadStream(Node.path.join(cwd, 'stdout'), {encoding:'utf-8'});
+    var stderr = Node.fs.createReadStream(Node.path.join(cwd, 'stderr'), {encoding:'utf-8'});
+
+
+    var sentStreams = false;
+    var errored = false;
+    stdout.once('data',
+      function(chunk) {
+        if (errored) return;
+        sentStreams = true;
+        finalEnd(null, stdout, stderr);
+      }
+    );
+    stderr.on('data',
+      function(chunk) {
+        if (/No authentication agent found/.test(chunk)) {
+          error = new Error(NO_POLKIT_AGENT);
+        } else if (/Request dismissed|Command failed|ENOENT/i.test(chunk)) {
+          error = new Error(PERMISSION_DENIED);
+        }
+        if (error && !sentStreams) {
+          errored = true;
+          finalEnd(error);
+        }
+      }
+    );
+  }
 }
 
 function MacPropertyList(instance, end) {
@@ -309,6 +363,7 @@ function MacPropertyList(instance, end) {
 }
 
 function MacResult(instance, end) {
+  if (instance.options.stream) return;
   var cwd = Node.path.join(instance.path, 'Contents', 'MacOS');
   Node.fs.readFile(Node.path.join(cwd, 'code'), 'utf-8',
     function(error, code) {
@@ -439,7 +494,7 @@ function Windows(instance, callback) {
                               WindowsResult(instance, end);
                             }
                           );
-                        }
+                        }, end
                       );
                     }
                   );
@@ -453,7 +508,7 @@ function Windows(instance, callback) {
   );
 }
 
-function WindowsElevate(instance, end) {
+function WindowsElevate(instance, end, finalEnd) {
   // We used to use this for executing elevate.vbs:
   // var command = 'cscript.exe //NoLogo "' + instance.pathElevate + '"';
   var command = [];
@@ -477,11 +532,41 @@ function WindowsElevate(instance, end) {
           end(error);
         }
       } else {
-        end();
+        if (!instance.options.stream) {
+          end();
+        }
       }
     }
   );
   child.stdin.end(); // Otherwise PowerShell waits indefinitely on Windows 7.
+  if (instance.options.stream) {
+    var stdout = Node.fs.createReadStream(instance.pathStdout, {encoding:'utf-8'});
+    var stderr = Node.fs.createReadStream(instance.pathStderr, {encoding:'utf-8'});
+
+
+    var sentStreams = false;
+    var errored = false;
+    stdout.once('data',
+      function(chunk) {
+        if (errored) return;
+        sentStreams = true;
+        finalEnd(null, stdout, stderr);
+      }
+    );
+    stderr.on('data',
+      function(chunk) {
+        if (/No authentication agent found/.test(chunk)) {
+          error = new Error(NO_POLKIT_AGENT);
+        } else if (/Request dismissed|Command failed|ENOENT/i.test(chunk)) {
+          error = new Error(PERMISSION_DENIED);
+        }
+        if (error && !sentStreams) {
+          errored = true;
+          finalEnd(error);
+        }
+      }
+    );
+  }
 }
 
 function WindowsResult(instance, end) {
