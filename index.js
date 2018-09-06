@@ -16,6 +16,10 @@ function Attempt(instance, end) {
   var command = [];
   command.push('/usr/bin/sudo');
   command.push('-n');
+  // Use localhost as sudo may stderr 'sudo: unable to resolve host <hostname>'
+  // if the hostname is not in /etc/hosts while still executing the command.
+  command.push('-h');
+  command.push('127.0.0.1');
   // Preserve user environment:
   command.push('-E');
   // Stop parsing command options:
