@@ -107,7 +107,7 @@ function Linux(instance, end) {
           if (error) {
             if (/No authentication agent found/.test(stderr)) {
               error = new Error(NO_POLKIT_AGENT);
-            } else if (/Request dismissed|Command failed/i.test(error)) {
+            } else if (/Request dismissed/i.test(error)) {
               error = new Error(PERMISSION_DENIED);
             }
           }
