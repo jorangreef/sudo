@@ -151,7 +151,7 @@ function Linux(instance, end) {
       }
       var magic = 'SUDOPROMPT\n';
       command.push(
-        '/bin/bash -c "echo ' + EscapeDoubleQuotes(magic.trim()) + '; ' +
+        '/usr/bin/env bash -c "echo ' + EscapeDoubleQuotes(magic.trim()) + '; ' +
         EscapeDoubleQuotes(instance.command) +
         '"'
       );
@@ -201,9 +201,7 @@ function LinuxBinary(instance, end) {
   // However, gksudo cannot run multiple commands concurrently.
   var paths = ['/usr/bin/kdesudo', '/usr/bin/pkexec'];
   function test() {
-    if (index === paths.length) {
-      return end(new Error('Unable to find pkexec or kdesudo.'));
-    }
+    if (index === paths.length) return which();
     var path = paths[index++];
     Node.fs.stat(path,
       function(error) {
@@ -214,6 +212,17 @@ function LinuxBinary(instance, end) {
         } else {
           end(undefined, path);
         }
+      }
+    );
+  }
+  function which() {
+    // Operating system paths are not always predictable.
+    // Fallback to a best-effort search for pkexec.
+    Node.child.exec('which pkexec',
+      function(error, stdout, stderr) {
+        if (error) return end(new Error('Unable to find pkexec or kdesudo.'));
+        var path = stdout.toString('utf-8').trim(); // Remove trailing newline.
+        end(undefined, path);
       }
     );
   }
