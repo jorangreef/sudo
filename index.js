@@ -151,7 +151,7 @@ function Linux(instance, end) {
       }
       var magic = 'SUDOPROMPT\n';
       command.push(
-        '/bin/bash -c "echo ' + EscapeDoubleQuotes(magic.trim()) + '; ' +
+        '/usr/bin/env bash -c "echo ' + EscapeDoubleQuotes(magic.trim()) + '; ' +
         EscapeDoubleQuotes(instance.command) +
         '"'
       );
