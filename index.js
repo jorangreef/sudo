@@ -488,13 +488,18 @@ function Windows(instance, callback) {
               WindowsWriteCommandScript(instance,
                 function(error) {
                   if (error) return end(error);
-                  WindowsElevate(instance,
-                    function(error, stdout, stderr) {
-                      if (error) return end(error, stdout, stderr);
-                      WindowsWaitForStatus(instance,
-                        function(error) {
-                          if (error) return end(error);
-                          WindowsResult(instance, end);
+                  WindowsCopyCmd(instance,
+                    function(error) {
+                      if (error) return end(error);
+                      WindowsElevate(instance,
+                        function(error, stdout, stderr) {
+                          if (error) return end(error, stdout, stderr);
+                          WindowsWaitForStatus(instance,
+                            function(error) {
+                              if (error) return end(error);
+                              WindowsResult(instance, end);
+                            }
+                          );
                         }
                       );
                     }
@@ -509,6 +514,21 @@ function Windows(instance, callback) {
   );
 }
 
+function WindowsCopyCmd(instance, end) {
+  // Work around https://github.com/jorangreef/sudo-prompt/issues/97
+  // Powershell can't properly escape amperstands in paths.
+  // We work around this by copying cmd.exe in our temporary folder and running
+  // it from here (see WindowsElevate below).
+  // That way, we don't have to pass the path containing the amperstand at all.
+  // A symlink would probably work too but you have to be an administrator in
+  // order to create symlinks on Windows.
+  Node.fs.copyFile(
+    Node.path.join(Node.process.env.SystemRoot, 'System32', 'cmd.exe'),
+    Node.path.join(instance.path, 'cmd.exe'),
+    end
+  );
+}
+
 function WindowsElevate(instance, end) {
   // We used to use this for executing elevate.vbs:
   // var command = 'cscript.exe //NoLogo "' + instance.pathElevate + '"';
@@ -516,15 +536,14 @@ function WindowsElevate(instance, end) {
   command.push('powershell.exe');
   command.push('Start-Process');
   command.push('-FilePath');
-  // Escape characters for cmd using double quotes:
-  // Escape characters for PowerShell using single quotes:
-  // Escape single quotes for PowerShell using backtick:
-  // See: https://ss64.com/ps/syntax-esc.html
-  command.push('"\'' + instance.pathExecute.replace(/'/g, "`'") + '\'"');
+  // Node.path.join('.', 'cmd.exe') would return 'cmd.exe'
+  command.push(['.', 'cmd.exe'].join(Node.path.sep));
+  command.push('-ArgumentList');
+  command.push('"/C","execute.bat"');
   command.push('-WindowStyle hidden');
   command.push('-Verb runAs');
   command = command.join(' ');
-  var child = Node.child.exec(command, { encoding: 'utf-8' },
+  var child = Node.child.exec(command, { encoding: 'utf-8', cwd: instance.path },
     function(error, stdout, stderr) {
       // We used to return PERMISSION_DENIED only for error messages containing
       // the string 'canceled by the user'. However, Windows internationalizes
