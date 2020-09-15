@@ -514,7 +514,21 @@ function Windows(instance, callback) {
   );
 }
 
+function WindowsNeedsCopyCmd(instance) {
+  const specialChars = ['&', '`', "'", '"', '<', '>', '|', '^'];
+  for (const specialChar of specialChars) {
+    if (instance.path.includes(specialChar)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function WindowsCopyCmd(instance, end) {
+  if (!WindowsNeedsCopyCmd(instance)) {
+    end();
+    return;
+  }
   // Work around https://github.com/jorangreef/sudo-prompt/issues/97
   // Powershell can't properly escape amperstands in paths.
   // We work around this by copying cmd.exe in our temporary folder and running
@@ -525,7 +539,7 @@ function WindowsCopyCmd(instance, end) {
   Node.fs.copyFile(
     Node.path.join(Node.process.env.SystemRoot, 'System32', 'cmd.exe'),
     Node.path.join(instance.path, 'cmd.exe'),
-    end
+    end,
   );
 }
 
@@ -536,14 +550,24 @@ function WindowsElevate(instance, end) {
   command.push('powershell.exe');
   command.push('Start-Process');
   command.push('-FilePath');
-  // Node.path.join('.', 'cmd.exe') would return 'cmd.exe'
-  command.push(['.', 'cmd.exe'].join(Node.path.sep));
-  command.push('-ArgumentList');
-  command.push('"/C","execute.bat"');
+  var options = { encoding: 'utf8' };
+  if (WindowsNeedsCopyCmd(instance)) {
+    // Node.path.join('.', 'cmd.exe') would return 'cmd.exe'
+    command.push(['.', 'cmd.exe'].join(Node.path.sep));
+    command.push('-ArgumentList');
+    command.push('"/C","execute.bat"');
+    options.cwd = instance.path;
+  } else {
+    // Escape characters for cmd using double quotes:
+    // Escape characters for PowerShell using single quotes:
+    // Escape single quotes for PowerShell using backtick:
+    // See: https://ss64.com/ps/syntax-esc.html
+    command.push('"\'' + instance.pathExecute.replace(/'/g, "`'") + '\'"');
+  }
   command.push('-WindowStyle hidden');
   command.push('-Verb runAs');
   command = command.join(' ');
-  var child = Node.child.exec(command, { encoding: 'utf-8', cwd: instance.path },
+  var child = Node.child.exec(command, options,
     function(error, stdout, stderr) {
       // We used to return PERMISSION_DENIED only for error messages containing
       // the string 'canceled by the user'. However, Windows internationalizes
